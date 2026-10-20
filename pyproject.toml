@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guardrail-middleware"
+version = "0.0.1"
+description = "Security guardrail middleware for LLM apps, RAG pipelines and agents (Project 5)"
+requires-python = ">=3.11"
+# The core package depends ONLY on pydantic, so other AI systems can import it
+# without pulling in FastAPI or any deployment code.
+dependencies = ["pydantic>=2.9,<3"]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115,<1", "uvicorn>=0.30"]
+dev = ["pytest>=8", "httpx>=0.27", "fastapi>=0.115,<1", "uvicorn>=0.30"]
+
+[tool.setuptools.package-data]
+"guardrails.api" = ["ui.html"]
+
+[tool.setuptools.packages.find]
+include = ["guardrails*"]
+
+[tool.ruff.lint]
+# Only real mistakes (syntax errors, unused imports/variables). Style rules are not enforced here.
+select = ["E9", "F"]

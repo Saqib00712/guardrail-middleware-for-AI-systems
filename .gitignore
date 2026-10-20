@@ -1,0 +1,12 @@
+.env
+__pycache__/
+.pytest_cache/
+*.db
+*.db-*
+.coverage
+*.egg-info/
+keys*.json
+*.jsonl
+/data/
+/config/
+.venv/

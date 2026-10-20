@@ -1,0 +1,23 @@
+# Example only. Create ./config/keys.json with:  python -m guardrails.api.auth create ... --keys-file config/keys.json
+# Put GR_AUDIT_KEY (32+ random characters) in your shell or in an UNTRACKED .env file next to this file.
+# The ./data folder must be writable by uid 10001 (the container user):  chown 10001 data   (Linux)
+services:
+  guardrails:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"          # local only; put a TLS-terminating proxy in front for anything else
+    environment:
+      GR_API_KEYS_FILE: /config/keys.json
+      GR_AUDIT_FILE: /data/audit.jsonl
+      GR_AUDIT_KEY: ${GR_AUDIT_KEY:?set GR_AUDIT_KEY to 32+ characters}
+    volumes:
+      - ./config:/config:ro
+      - ./data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

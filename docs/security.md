@@ -1,0 +1,26 @@
+# Security notes: threats, controls, evidence, what is left
+
+Nothing here is a claim that the system is secure or that any attack class is fully stopped. Each row says what the control does,
+which test pins it, and what remains. The threat list is from `docs/phase0.md`. Evidence is written as test file, then `::`, then test name.
+
+| # | Threat | Controls and evidence | Residual risk |
+|---|---|---|---|
+| T1 | Direct prompt injection | Rules with confidence levels: `tests/unit/test_injection.py::test_direct_override_is_flagged_in_every_source`. Strictest-wins policy. | **Rules miss many attacks.** On the hand-written evaluation cases only 31 of 126 injection cases were handled (see `docs/final_report.md`). Treat injection as likely to get through; rely on the tool guard, approvals and output checks, not on detection alone. |
+| T2 | Indirect injection (documents, web pages, tool output) | Source-aware rules: `test_injection.py::test_same_sentence_is_a_request_from_a_user_but_an_attack_inside_a_document`. Taint: `tests/unit/test_tools.py::test_injection_in_retrieved_content_blocks_external_tools_even_with_approval` | Taint only follows content that was sent through the checks. Content the host never submits is invisible to us. |
+| T3 | Secret and PII exfiltration | Detectors with validators and redaction verified by rescan: `tests/unit/test_redaction.py::test_redacted_output_rescans_clean_and_redaction_is_idempotent`, `tests/unit/test_secrets.py::test_findings_never_contain_the_secret`, output: `tests/unit/test_output.py::test_secret_in_output_is_blocked` | Pattern-based. Unknown formats, split or paraphrased values and non-listed languages can pass. The evaluation left 14 sensitive values in released text. |
+| T4 | Unauthorized tool calls | Frozen registry, roles, tenants, strict arguments, HMAC single-use approvals: `tests/unit/test_tools.py::test_approval_is_bound_to_exact_arguments_tool_user_and_tenant`, `test_tools.py::test_unknown_or_tricky_tool_names_are_unknown` | The host application must call the check before running a tool. The service cannot force it to. |
+| T5 | Cross-tenant access | Tenant and user only from the key: `tests/unit/test_api.py::test_body_cannot_choose_the_tenant`, `test_api.py::test_runs_are_private_to_their_owner`, per-tenant policy: `test_api.py::test_each_tenant_gets_its_own_policy` | One process and one audit file serve all tenants; there is no separate storage per tenant. |
+| T6 | Resource exhaustion | Size limits, bounded scans, rate limits, budgets, deadlines: `tests/unit/test_limits.py::test_slow_input_is_blocked_with_deadline_exceeded_and_no_text`, `test_limits.py::test_table_is_bounded_and_refuses_new_keys_instead_of_evicting_old_ones`, `tests/unit/test_api.py::test_body_size_limit_is_enforced_before_parsing` | Limits are per process in memory. The deadline is checked between stages, so one stage can overrun it. Slowest measured 20,000-character input took about 73 ms here; that is one machine. |
+| T7 | Encoding and Unicode tricks | Normalization with offset map, bounded decode-and-rescan: `tests/unit/test_normalization.py::test_zero_width_space_inside_latin_word_is_removed_and_flagged`, `tests/unit/test_injection.py::test_nested_base64_two_levels_found_and_three_levels_not` | Depth and candidate count are bounded on purpose, so deeper nesting passes. Some strict-xfail tests record known gaps. |
+| T8 | Leaks through logs, errors, metrics | Audit events have no content field: `tests/unit/test_audit.py::test_event_has_no_field_for_content`; fixed-text errors: `tests/unit/test_api.py::test_errors_never_echo_what_the_client_sent`; metrics: `tests/unit/test_ops.py::test_metrics_never_contain_content_tenants_or_users` | Identifiers (tenant, user pseudonyms, request ids) are in the audit log. Operators' own logging and proxies are outside this code. |
+| T9 | Backend failure disabling a control | Explicit fail-closed defaults: `tests/unit/test_pipeline.py::test_detector_crash_fails_closed_without_leaking`, `tests/unit/test_audit.py::test_sink_failure_blocks_allowed_results_when_failing_closed` | Fail closed means an outage of audit or detectors becomes an outage of the service. Development can opt out; production cannot for detectors and audit. |
+| T10 | Weak admin access, policy tampering | Scopes: `tests/unit/test_api.py::test_scopes_are_enforced`; validated policies: `tests/unit/test_policy.py::test_unsafe_allow_rules_are_rejected`; hashed keys: `test_api.py::test_keys_are_stored_as_hashes_only` | There is no key revocation API; edit the keys file and restart. Policy files are trusted input from the operator. Audit chain tamper detection needs the head saved elsewhere. |
+
+## Streaming
+Text already released to a client cannot be recalled. The stream guard holds back a window before releasing, which lowers but does not remove the chance that something split across chunks gets out before it is recognized (`tests/unit/test_output.py::test_text_released_before_a_block_stays_released_and_stream_stops`).
+
+## Not covered at all
+Model quality and factual correctness; a compromised host or host operator; denial of service at network level; encryption in transit (use a proxy); secret rotation; legal compliance of any kind; protection of data after it leaves the service; non-text content.
+
+## Reporting a problem
+See `SECURITY.md`.

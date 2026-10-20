@@ -1,0 +1,11 @@
+{
+  "tools": [
+    {"name": "search_docs", "description": "Search the knowledge base", "risk": "read", "roles": ["user", "agent"],
+     "args": {"query": {"type": "string", "max_length": 300}, "limit": {"type": "integer", "min": 1, "max": 20, "required": false}}},
+    {"name": "send_email", "description": "Send an email on the user's behalf", "risk": "external", "roles": ["user"],
+     "args": {"to": {"type": "string", "max_length": 200}, "subject": {"type": "string", "max_length": 200},
+              "body": {"type": "string", "max_length": 5000}}},
+    {"name": "delete_record", "description": "Delete a customer record", "risk": "destructive", "roles": ["admin"],
+     "tenants": ["acme"], "args": {"record_id": {"type": "string", "max_length": 64}}}
+  ]
+}

@@ -1,0 +1,51 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests (${{ matrix.os }}, python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lint (syntax errors and unused code)
+        run: |
+          python -m pip install ruff
+          ruff check guardrails tests
+      - name: No secrets, databases or audit logs are tracked
+        run: |
+          bad=$(git ls-files | grep -E '(^|/)(\.env|keys[^/]*\.json)$|\.(db|jsonl)$' || true)
+          if [ -n "$bad" ]; then echo "tracked sensitive files:"; echo "$bad"; exit 1; fi
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t guardrails:ci .
+      - name: Runs as a non-root user
+        run: test "$(docker run --rm guardrails:ci id -u)" = "10001"
+      - name: Refuses to start without keys and an audit log (fails closed)
+        run: |
+          if docker run --rm guardrails:ci; then echo "service started without configuration"; exit 1; fi

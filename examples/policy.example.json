@@ -1,0 +1,15 @@
+{
+  "id": "acme-strict",
+  "version": 3,
+  "mode": "enforce",
+  "unmatched_action": "block",
+  "rules": [
+    {"id": "secrets-block", "action": "block", "reason_codes": ["SECRET_DETECTED"]},
+    {"id": "pii-sanitize", "action": "sanitize", "reason_codes": ["PII_DETECTED"], "max_severity": "medium"},
+    {"id": "pii-high-block", "action": "block", "reason_codes": ["PII_DETECTED"], "min_severity": "high"},
+    {"id": "injection-any-review", "action": "require_review", "reason_codes": ["PROMPT_INJECTION", "SYSTEM_PROMPT_EXTRACTION"]},
+    {"id": "injection-confident-block", "action": "block", "reason_codes": ["PROMPT_INJECTION", "SYSTEM_PROMPT_EXTRACTION"], "min_confidence": "high"},
+    {"id": "unsafe-output-block", "action": "block", "reason_codes": ["UNSAFE_CONTENT"], "stages": ["output"]},
+    {"id": "encoding-review", "action": "require_review", "reason_codes": ["SUSPICIOUS_ENCODING"]}
+  ]
+}
